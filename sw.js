@@ -1,5 +1,5 @@
 // Set 2 Set offline cache. Bump VERSION whenever index.html changes.
-const VERSION = "set2set-v1";
+const VERSION = "set2set-v2";
 const CORE = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(VERSION).then(c => c.addAll(CORE))); self.skipWaiting(); });
 self.addEventListener("activate", e => {

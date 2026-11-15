@@ -218,7 +218,32 @@ main.noBar{padding-bottom:48px}
 .cd.blank{border:0;background:transparent}
 .cd:disabled{opacity:.35;cursor:default}
 .cd.on{background:var(--good);border-color:var(--good);color:var(--surface);font-weight:700}
-.cd.today{outline:2px solid var(--accent);outline-offset:1px}
+.cd.today{outline:2px solid var(--ink);outline-offset:1px}
+.cd.tech{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.cd.both{background:linear-gradient(135deg,var(--good) 50%,var(--accent) 50%);border-color:transparent;color:var(--surface);font-weight:700}
+.cd.sel{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--muted)}
+.callegend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.callegend span{display:inline-flex;align-items:center;gap:6px}
+.callegend i{width:14px;height:14px;border-radius:4px;display:inline-block}
+.lg-gym{background:var(--good)}.lg-tech{background:var(--accent)}.lg-both{background:linear-gradient(135deg,var(--good) 50%,var(--accent) 50%)}
+.daypanel{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.dp-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.dp-h strong{font-family:var(--f-display);font-size:22px;text-transform:uppercase;letter-spacing:.03em}
+.dp-h span{font-family:var(--f-data);font-size:12px;color:var(--muted)}
+.dp-gym{display:flex;align-items:center;gap:12px}
+.dp-gym .t,.techrow .t{flex:1;min-width:0;display:flex;flex-direction:column}
+.dp-gym .t span,.techrow .t span{font-size:13px;color:var(--muted)}
+.gdot,.tdot{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid var(--good)}
+.gdot.on{background:var(--good)}
+.tdot{border-color:var(--accent)}
+.techrow{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px 14px}
+.daypanel .techrow{padding:10px 0 0;border:0;border-top:1px solid var(--line);border-radius:0}
+.techrow .box{width:32px;height:32px;border-radius:9px;border:1.5px solid var(--line);display:grid;place-items:center;color:transparent;flex:none}
+.techrow .box svg{width:18px;height:18px}
+.techrow[aria-pressed="true"]{border-color:var(--accent)}
+.daypanel .techrow[aria-pressed="true"]{border-color:var(--line)}
+.techrow[aria-pressed="true"] .tdot{background:var(--accent)}
+.techrow[aria-pressed="true"] .box{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
 .barnote{font-size:14px;color:var(--muted)}
 .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;background:var(--line);padding:4px;border-radius:14px}
 .seg button{border:0;background:transparent;border-radius:10px;padding:10px 4px;font-weight:600;font-size:14px;color:var(--muted)}
@@ -345,7 +370,8 @@ const state = {
   active:"setter", draft:null, confirmDel:null, editErr:"",
   journal:null,                         // {date, step, values}
   settings:{barbell:20,dumbbell:2},     // weight added to logged plates
-  calMonth:TODAY.slice(0,7)
+  calMonth:TODAY.slice(0,7), calSel:TODAY,
+  technique:{}                          // date -> true
 };
 const BARS = {barbell:{label:"Barbell",short:"barbell",pick:"Barbell"},dumbbell:{label:"Dumbbell handle",short:"handle",pick:"Dumbbells"}};
 const barKg = b=>BARS[b]?Number(state.settings[b]||0):0;
@@ -368,8 +394,8 @@ let col=null, mode="local";
 const dirty=new Set(), timers={}, saving={};
 const sessDocId=(p,d)=>p==="setter"?"d-"+d:"d-"+p+"_"+d;
 function setStatus(kind,text){const el=$("#status");el.className="status "+kind;el.querySelector("span").textContent=text}
-function loadLocal(){try{const r=JSON.parse(localStorage.getItem("set2set.v2")||"{}");state.sessions=r.sessions||{};state.custom=r.custom||{};if(r.settings)state.settings={...state.settings,...r.settings}}catch(e){}}
-function saveLocal(){try{localStorage.setItem("set2set.v2",JSON.stringify({sessions:state.sessions,custom:state.custom,settings:state.settings}))}catch(e){}}
+function loadLocal(){try{const r=JSON.parse(localStorage.getItem("set2set.v2")||"{}");state.sessions=r.sessions||{};state.custom=r.custom||{};if(r.settings)state.settings={...state.settings,...r.settings};state.technique=r.technique||{}}catch(e){}}
+function saveLocal(){try{localStorage.setItem("set2set.v2",JSON.stringify({sessions:state.sessions,custom:state.custom,settings:state.settings,technique:state.technique}))}catch(e){}}
 
 // first launch: carry over the sessions logged in the Claude version
 const SEED = {"setter": {"2026-11-02": {"bench": {"bar": "dumbbell", "value": 3.75}, "deepsquat": {"bar": "dumbbell", "value": 3.75}, "extrot": {"bar": "dumbbell", "value": 1.25}, "latpull": {"done": true, "note": "Band"}, "powerclean": {"bar": "dumbbell", "value": 3.75}, "rotations": {"bar": "dumbbell", "value": 3.75}, "situp": {"bar": "dumbbell", "value": 3.75}}, "2026-11-07": {"bench": {"bar": "dumbbell", "value": 3.75}, "deepsquat": {"bar": "dumbbell", "value": 3.75}, "depthdrop": {"done": true}, "depthjump": {"done": true}, "dropjump": {"done": true}, "extrot": {"bar": "dumbbell", "value": 2.5}, "hipbox": {"done": true}, "jog": {"done": true}, "karaoke": {"done": true}, "latpull": {"done": true, "note": "Band"}, "powell": {"bar": "dumbbell", "value": 2.5}, "powerclean": {"bar": "dumbbell", "value": 3.75}, "rotations": {"bar": "dumbbell", "value": 5}, "shuffle": {"done": true}, "situp": {"bar": "dumbbell", "value": 5}, "squatmob": {"done": true}}}};
@@ -382,7 +408,7 @@ async function initStore(){
   setStatus("ok","Saved on this phone"); render();
 }
 function exportBackup(){
-  const data={app:"set2set",version:1,exported:new Date().toISOString(),sessions:state.sessions,custom:state.custom,settings:state.settings};
+  const data={app:"set2set",version:1,exported:new Date().toISOString(),sessions:state.sessions,custom:state.custom,settings:state.settings,technique:state.technique};
   const blob=new Blob([JSON.stringify(data,null,1)],{type:"application/json"});
   const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`set2set-backup-${TODAY}.json`;
   document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000);
@@ -391,7 +417,7 @@ function exportBackup(){
 function importBackup(file){
   const r=new FileReader();
   r.onload=()=>{try{const d=JSON.parse(r.result);if(d.app!=="set2set"||!d.sessions)throw 0;
-    state.sessions=d.sessions;state.custom=d.custom||{};state.settings={...state.settings,...(d.settings||{})};saveLocal();render();toast("Backup restored")}
+    state.sessions=d.sessions;state.custom=d.custom||{};state.settings={...state.settings,...(d.settings||{})};state.technique=d.technique||{};saveLocal();render();toast("Backup restored")}
     catch(e){toast("That file isn't a Set 2 Set backup")}};
   r.readAsText(file);
 }
@@ -520,7 +546,8 @@ function viewLog(){
       <span>${fmtFull(state.date)} · ${logged}/${total} logged</span>
       ${state.date!==TODAY?`<div><button class="linkbtn" data-act="today">Back to today</button></div>`:""}</div>
     <button class="iconbtn" data-act="day" data-d="1" aria-label="Next day" ${state.date>=TODAY?"disabled":""}>${ICON.right}</button>
-  </div>`;
+  </div>
+  ${techToggle(state.date)}`;
   if(!total) h+=`<div class="emptybox">This program has no exercises yet.<button class="btn primary" data-act="edit" data-p="${p.id}">Add exercises</button></div>`;
   p.blocks.forEach(b=>{
     if(!b.items.length) return;
@@ -652,24 +679,38 @@ function barNote(ex,v,b){
   if(v==null||v==="") return `Enter the plates only${b==="dumbbell"?", per dumbbell":""}. The ${n} (${fmtNum(add)} kg) is added for you.`;
   return `${fmtNum(v)} + ${n} ${fmtNum(add)} = <b>${fmtNum(Number(v)+add)} kg${b==="dumbbell"?" per dumbbell":" total"}</b>`;
 }
+const gymOn = k=>Object.values(state.sessions).some(s=>s&&s[k]&&Object.keys(s[k]).length>0);
+const techOn = k=>!!state.technique[k];
+function techToggle(k){
+  const on=techOn(k);
+  return `<button class="techrow" data-act="tech" data-d="${k}" aria-pressed="${on}"><span class="tdot"></span><span class="t"><b>Technique training</b><span>Serve, setting, receiving</span></span><span class="box">${ICON.tick}</span></button>`;
+}
 function viewCalendar(){
-  const p=activeProg(), s=state.sessions[p.id]||{};
   const [y,mo]=state.calMonth.split("-").map(Number), first=new Date(y,mo-1,1);
   const lead=(first.getDay()+6)%7, n=new Date(y,mo,0).getDate();
-  let cells="", count=0;
+  let cells="", gym=0, tech=0;
   for(let i=0;i<lead;i++) cells+=`<span class="cd blank"></span>`;
   for(let d=1;d<=n;d++){
-    const k=`${y}-${pad(mo)}-${pad(d)}`, on=s[k]&&Object.keys(s[k]).length>0, fut=k>TODAY;
-    if(on)count++;
-    cells+=`<button class="cd${on?" on":""}${k===TODAY?" today":""}" data-act="calday" data-d="${k}" ${fut?"disabled":""} aria-label="${fmtFull(k)}${on?", trained":""}">${d}</button>`;
+    const k=`${y}-${pad(mo)}-${pad(d)}`, g=gymOn(k), t=techOn(k), fut=k>TODAY;
+    if(g)gym++; if(t)tech++;
+    const cls=g&&t?" both":g?" on":t?" tech":"";
+    const lab=[g?"gym":"",t?"technique":""].filter(Boolean).join(" and ");
+    cells+=`<button class="cd${cls}${k===TODAY?" today":""}${k===state.calSel?" sel":""}" data-act="calday" data-d="${k}" ${fut?"disabled":""} aria-label="${fmtFull(k)}${lab?", "+lab:""}">${d}</button>`;
   }
-  const all=Object.keys(s).length, isNow=state.calMonth===TODAY.slice(0,7);
-  return `<section class="screen">${progChip()}
+  const isNow=state.calMonth===TODAY.slice(0,7), sel=state.calSel;
+  const p=activeProg(), sd=(state.sessions[p.id]||{})[sel]||{}, logged=dayCount(p,sd);
+  const panel=`<div class="daypanel">
+      <div class="dp-h"><strong>${sel===TODAY?"Today":fmtLong(sel)}</strong><span>${fmtFull(sel)}</span></div>
+      <div class="dp-gym"><span class="gdot${gymOn(sel)?" on":""}"></span><span class="t"><b>Gym</b><span>${logged?`${logged} exercise${logged===1?"":"s"} logged`:"Nothing logged"}</span></span><button class="btn" data-act="calopen" data-d="${sel}">${logged?"Open log":"Log gym"}</button></div>
+      ${techToggle(sel)}
+    </div>`;
+  return `<section class="screen">
     <div class="daynav"><button class="iconbtn" data-act="calmonth" data-d="-1" aria-label="Previous month">${ICON.left}</button>
-      <div class="when"><strong>${first.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}</strong><span>${count} training day${count===1?"":"s"} this month · ${all} total</span></div>
+      <div class="when"><strong>${first.toLocaleDateString("en-GB",{month:"long",year:"numeric"})}</strong><span>${gym} gym · ${tech} technique</span></div>
       <button class="iconbtn" data-act="calmonth" data-d="1" aria-label="Next month" ${isNow?"disabled":""}>${ICON.right}</button></div>
     <div class="cal">${["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=>`<span class="cdh">${d}</span>`).join("")}${cells}</div>
-    <p class="note">Green days are days you trained. Tap a day to see or edit what you logged.</p></section>`;
+    <div class="callegend"><span><i class="lg-gym"></i>Gym</span><span><i class="lg-tech"></i>Technique</span><span><i class="lg-both"></i>Both</span></div>
+    ${panel}</section>`;
 }
 
 /* ---------- journal flow ---------- */
@@ -786,7 +827,9 @@ document.addEventListener("click",async e=>{
     case "jbar": {const ex=jCur().ex;J.bars[ex.id]=t.dataset.v;render();break}
     case "jband": {const ex=jCur().ex;if(J.values[ex.id]==="band")delete J.values[ex.id];else J.values[ex.id]="band";render();break}
     case "calmonth": {const [y,m]=state.calMonth.split("-").map(Number);const d=new Date(y,m-1+(+t.dataset.d),1);const k=ymd(d).slice(0,7);if(k<=TODAY.slice(0,7)){state.calMonth=k;render()}break}
-    case "calday": state.date=t.dataset.d; go("log"); break;
+    case "calday": state.calSel=t.dataset.d; render(); break;
+    case "calopen": state.date=t.dataset.d; go("log"); break;
+    case "tech": {const k=t.dataset.d;if(state.technique[k])delete state.technique[k];else state.technique[k]=true;saveLocal();render();toast(state.technique[k]?"Marked as technique day":"Technique day removed");break}
     case "jsave": saveJournal(); break;
     case "export": exportBackup(); break;
     case "toggle": {const p=activeProg(),cur=((state.sessions[p.id]||{})[state.date]||{})[t.dataset.ex];setEntry(p.id,state.date,t.dataset.ex,cur&&cur.done?null:{done:true});render();break}
